@@ -421,7 +421,7 @@ img{-webkit-user-drag:none;-webkit-touch-callout:none}
 .msg .bubble img{max-width:100%;border-radius:10px;display:block;margin-top:4px}
 .msg .who{font-size:10px;color:var(--sub);margin-bottom:3px}
 /* ===== 我的 ===== */
-.profile-card{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border-radius:18px;margin:14px 12px;padding:20px;color:#fff;display:flex;align-items:center;gap:14px}
+.profile-card{background:linear-gradient(135deg,#fff0e5 0%,#ffe0ea 100%);border-radius:18px;margin:14px 12px;padding:20px;color:#5b6478;display:flex;align-items:center;gap:14px}
 .menu-card{background:var(--card);border-radius:16px;margin:12px;padding:6px 16px;box-shadow:0 2px 12px rgba(20,24,50,.05)}
 .menu-row{display:flex;justify-content:space-between;align-items:center;padding:15px 0;border-bottom:1px solid var(--line);cursor:pointer;font-size:15px}
 .menu-row:last-child{border:none}
@@ -1336,7 +1336,7 @@ function loadTurns(){
 }
 var DISCOVER_PLATES=[
   {group:"社区通知", items:[{id:"6", name:"官方通知", ic:"flag"}]},
-  {group:"资源分享", items:[{id:"7", name:"综合板块", ic:"doc"}, {id:"8", name:"GG修改器", ic:"settings"}]}
+  {group:"资源分享", items:[{id:"7", name:"综合板块", ic:"doc"}, {id:"9", name:"实用软件", ic:"file"}, {id:"8", name:"GG修改器", ic:"settings"}, {id:"10", name:"文件专区", ic:"folder"}, {id:"11", name:"游戏交流", ic:"comment"}, {id:"12", name:"MOD游戏", ic:"gamepad"}, {id:"13", name:"次元相册", ic:"image"}]}
 ];
 // 板块匹配：仅按板块ID精确匹配（ID3 与 ID7 两个综合板块各自独立显示）
 function findPlateInfo(all,id,name){
@@ -2483,7 +2483,7 @@ function renderAuthorProfile(user){
       if(!j)return;
       var nm2=j.name?String(j.name).trim():"";
       var sig=j.autograph?String(j.autograph).trim():"";
-      if(nm2&&nm2!==nm&&nm2!==user){var ne=document.querySelector("#au .au-name");if(ne&&ne.textContent===nm)ne.textContent=nm2}
+      if(nm2&&nm2!==nm&&nm2!==user){var ne=document.querySelector("#au .au-name .nick-t");if(ne)ne.textContent=nm2}
       if(sig){var se=document.getElementById("au_sig");if(se){se.textContent=sig;se.style.display="block"}}
       if(j.vip===true||String(j.vip)==="true"||String(j.vip)==="1"){var _a=document.querySelector("#au .avatar");if(_a&&!_a.querySelector(".vip-frame")){_a.classList.add("av-vip");var _fr=document.createElement("img");_fr.className="vip-frame";_fr.src="pic/vip-5.png";_fr.alt="";_a.appendChild(_fr)}}
     }).catch(function(){});
