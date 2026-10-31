@@ -421,7 +421,7 @@ img{-webkit-user-drag:none;-webkit-touch-callout:none}
 .msg .bubble img{max-width:100%;border-radius:10px;display:block;margin-top:4px}
 .msg .who{font-size:10px;color:var(--sub);margin-bottom:3px}
 /* ===== 我的 ===== */
-.profile-card{background:linear-gradient(135deg,var(--pri),var(--pri2));border-radius:18px;margin:14px 12px;padding:20px;color:#fff;display:flex;align-items:center;gap:14px}
+.profile-card{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border-radius:18px;margin:14px 12px;padding:20px;color:#fff;display:flex;align-items:center;gap:14px}
 .menu-card{background:var(--card);border-radius:16px;margin:12px;padding:6px 16px;box-shadow:0 2px 12px rgba(20,24,50,.05)}
 .menu-row{display:flex;justify-content:space-between;align-items:center;padding:15px 0;border-bottom:1px solid var(--line);cursor:pointer;font-size:15px}
 .menu-row:last-child{border:none}
@@ -2087,10 +2087,10 @@ function renderGameDetail(id){
     loadUpOtherResources(p.user); // 加载其他分享
   }).catch(function(){document.getElementById("gd").innerHTML='<div class="empty">网络错误</div>'});
 }
-function applyUserDecor(nickEl,avatarEl,j){
+function applyUserDecor(nickEl,avatarEl,j,opts){
   if(!j)return false;
   var lv=(j.level!==undefined&&j.level!==null&&j.level!=="")?j.level:"0";
-  if(nickEl&&!nickEl.querySelector(".lv")){
+  if(!(opts&&opts.noLv)&&nickEl&&!nickEl.querySelector(".lv")){
     var ls=document.createElement("span");ls.className="lv";ls.textContent="Lv"+lv;
     var vb=nickEl.querySelector("img.vip-badge");
     if(vb){nickEl.insertBefore(ls,vb)}else{nickEl.appendChild(ls)}
@@ -2108,7 +2108,7 @@ function enrichAuthor(acct,nickEl,avatarEl,opts){
   if(!avatarEl&&nickEl){var wrap=nickEl.closest(".post-head,.cmt,.fl-item,.gd-up,.au-head,.rank-row,.ms-head");if(wrap)avatarEl=wrap.querySelector(".avatar")}
   apiPost(CONFIG.APIBase+"user_yhxx.php",[["backstage",CONFIG.backstage],["appid",CONFIG.appid],["key",CONFIG.key],["user",acct]]).then(function(j){
     if(!j)return;
-    if(applyUserDecor(nickEl,avatarEl,j)&&opts&&opts.cardEl){opts.cardEl.style.display="block";opts.cardEl.innerHTML='<img src="pic/vip-3.png" draggable="false">'}
+    if(applyUserDecor(nickEl,avatarEl,j,opts)&&opts&&opts.cardEl){opts.cardEl.style.display="block";opts.cardEl.innerHTML='<img src="pic/vip-3.png" draggable="false">'}
   }).catch(function(){});
 }
 
@@ -2918,7 +2918,7 @@ function renderMsg(){
   apiPost(CONFIG.forumBase+"message_chat_list.php",forumAuth().concat([["user",a.user]])).then(function(j){
     var d=j&&j.data;var list=(d&&d.list)||[];var el=document.getElementById("flist");if(!el)return;
     el.innerHTML=list.length?list.map(function(c){return '<div class="fl-item" style="display:flex;align-items:center;gap:10px;padding:13px 0;border-bottom:1px solid var(--line);cursor:pointer" onclick="go(\'chat:'+esc(c.peer)+'\')">'+avatarHtml(c.name||c.peer,40,c.peer,"",c.vip)+'<div style="flex:1"><div class="fl-name" style="font-weight:700;font-size:14px">'+esc(c.name||c.peer)+(c.unread?'<span class="badge">'+esc(c.unread)+'</span>':'')+'</div><div style="font-size:12px;color:#98a0b3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(c.last_content||"")+'</div></div><span style="color:#98a0b3">›</span></div>'}).join(""):'<div style="color:#98a0b3;font-size:13px;text-align:center;padding:16px 0">暂无好友，去资源详情页给 UP 主发私信吧</div>';
-    var _fnames=el.querySelectorAll(".fl-name");list.forEach(function(c,i){var n=_fnames[i];if(n&&c.peer)enrichAuthor(c.peer,n)});
+    var _fnames=el.querySelectorAll(".fl-name");list.forEach(function(c,i){var n=_fnames[i];if(n&&c.peer)enrichAuthor(c.peer,n,null,{noLv:true})});
   }).catch(function(){var el=document.getElementById("flist");if(el)el.innerHTML='<div style="color:#98a0b3;font-size:13px;text-align:center;padding:16px 0">网络错误</div>'});
 }
 
@@ -3317,6 +3317,7 @@ function renderVdress(){
     +'<div class="sec-card"><div class="sec-h">专属头像框</div><div style="display:flex;align-items:center;gap:14px;padding:6px 2px">'+avatarHtml(USER.name||"会员",52,USER.user||"","",true)+'<span style="font-size:13px;color:#5b6478;line-height:1.6">会员头像外圈展示星月魔法头像框<br><b style="color:var(--pri)">开启会员后全局生效</b></span></div></div>'
     +'<div class="sec-card"><div class="sec-h">专属聊天背景</div><div style="height:160px;border-radius:12px;background:url(\'pic/vip-4.png\') center/cover no-repeat;border:1px solid var(--line)"></div></div>'
     +'<div class="sec-card"><div class="sec-h">SVIP 专属徽章</div><div style="display:flex;align-items:center;gap:10px;padding:6px 0"><img src="pic/vip-2.gif" style="height:34px"><span style="font-size:13px;color:#5b6478">个人主页昵称后展示的会员徽章</span></div></div>'
+    +'<div class="sec-card"><div class="sec-h">会员渐变名称</div><div style="display:flex;align-items:center;gap:14px;padding:6px 2px"><span class="vip-name" style="font-size:22px;font-weight:800">'+esc(USER.name||USER.user_name||"会员昵称")+'</span><span style="font-size:13px;color:#5b6478;line-height:1.6">会员昵称以红橙渐变色高亮展示<br><b style="color:var(--pri)">开启会员后全局生效</b></span></div></div>'
     +'</div>';
 }
 function loadProfileStats(){
@@ -4321,48 +4322,55 @@ function verParts(v){return String(v||"").split(".").map(function(n){var x=parse
 function verGt(a,b){
   var A=verParts(a),B=verParts(b),L=Math.max(A.length,B.length);
   for(var i=0;i<L;i++){var x=A[i]||0,y=B[i]||0;if(x>y)return true;if(x<y)return false}
-  返回超文本标记语言
->
-var UPDATE_LINK=""，UPDATE_EDITION=""； UPDATE_LINK="",UPDATE_EDITION="";
-函数checkUpdate(){ checkUpdate(){
-apiPost(配置softBase+"api/update_get.php"，[["user"，CONFIG.后台]，["appid"，CONFIG.AppID]])。然后(函数(j){apiPost(CONFIG.softBase+"api/update_obtain.php",[["user",CONFIG.backstage],["appid",CONFIG.appid]]).then(function(j){
-if(！j||String(j.code)！=="1")返回；if(!j||String(j.code)!=="1")return;
-var ed=String(j.edition||"").Trim()；var ed=String(j.edition||"").trim();
-var lk=字符串(j.link||"").Trim()；var lk=String(j.link||"").trim();
-    // 仅当后台版本高于本地版本且已配置有效下载链接时弹窗（后台未配链接则不弹，避免死锁卡死用户）// 仅当后台版本高于本地版本且已配置有效下载链接时弹窗（后台未配链接则不弹，避免死锁卡死用户）
-if(！Vegt(ed，APP_VERSION))返回；if(!verGt(ed,APP_VERSION))return;
-if(！lk||lk==="无下载链接")返回；if(!lk||lk==="无下载链接")return;
-update_LINK=lk；UPDATE_EDITION=ed；UPDATE_LINK=lk;UPDATE_EDITION=ed;
-showForceUpdate(String(j.内容||"")。修剪())；showForceUpdate(String(j.content||"").trim());
-}).catch(函数(){})；}).catch(function(){});
+  return false;
 }
-函数showForceUpdate(内容){ showForceUpdate(content){
-if(document.getElementById("upd_force_mask"))返回；if(document.getElementById("upd_force_mask"))return;
-var M=文件。createElement("div")；m.className="modal-mask"；m.ID="upd_force_mask"；var m=document.createElement("div");m.className="modal-mask";m.id="upd_force_mask";
-m.innerHTML='<div class="modal-card"style="text-align:center">'m.innerHTML='<div class="modal-card" style="text-align:center">'
-+'<div style="width:52px；height:52px；margin:0auto 10px;border-radius:16px;background:linear-gradient(135deg,#ff4a3a,#ff8a3a);color:#fff;display:flex;align-items:center;justify-content:center">'+icon("download")+'</div>''<div style="width:52px;height:52px;margin:0 auto 10px;border-radius:16px;background:linear-gradient(135deg,#ff4a3a,#ff8a3a);color:#fff;display:flex;align-items:center;justify-content:center">'+icon("download")+'</div>'
-+'<div class="modal-tit">发现新版本v'+esc(UPDATE_EDITION)+'</div>''<div class="modal-tit">发现新版本 V'+esc(UPDATE_EDITION)+'</div>'
-+'<div class="modal-msg"style="white-space：预换行；text-align:left">'+(content？ESC(content)：'请更新到最新版本后继续使用')+'</div>''<div class="modal-msg" style="white-space:pre-wrap;text-align:left">'+(content?esc(content):'请更新到最新版本后继续使用')+'</div>'
-+'<button style="显示：块；边距：14px自动0；边框：0；背景：透明；颜色：#4a6cf7；字体大小：14px；字体粗细：600；光标：指针"onClick="copyForceLink()">复制更新链接</button>''<button style="display:block;margin:14px auto 0;border:0;background:transparent;color:#4a6cf7;font-size:14px;font-weight:600;cursor:pointer" onclick="copyForceLink()">复制更新链接</button>'
-+'<div class="modal-acts"><button class="btn btn-primary"onclick="doForceUpdate()">立即更新</button></div>''<div class="modal-acts"><button class="btn btn-primary" onclick="doForceUpdate()">立即更新</button></div>'
-+'</div>'；'</div>';
-  // 强制更新弹窗：无关闭按钮，点击遮罩/返回均不关闭，直至用户更新到最新版本// 强制更新弹窗：无关闭按钮，点击遮罩/返回均不关闭，直至用户更新到最新版本
-米。addEventListener("click"，函数(e){e.stopPropagation()})；m.addEventListener("click",function(e){e.stopPropagation()});
-  document.body.appendChild(m);document.body.appendChild(m);
+
+var UPDATE_LINK="",UPDATE_EDITION="";
+function checkUpdate(){
+  apiPost(CONFIG.softBase+"api/update_obtain.php",[["user",CONFIG.backstage],["appid",CONFIG.appid]]).then(function(j){
+    if(!j||String(j.code)!=="1")return;
+    var ed=String(j.edition||"").trim();
+    var lk=String(j.link||"").trim();
+    // 仅当后台版本高于本地版本且已配置有效下载链接时弹窗（后台未配链接则不弹，避免死锁卡死用户）
+    if(!verGt(ed,APP_VERSION))return;
+    if(!lk||lk==="无下载链接")return;
+    UPDATE_LINK=lk;UPDATE_EDITION=ed;
+    showForceUpdate(String(j.content||"").trim());
+  }).catch(function(){});
 }
-函数copyForceLink(){ copyForceLink(){
-if(！update_LINK){toast("暂无下载链接")；返回}if(!UPDATE_LINK){toast("暂无下载链接");return}
-copyText(UPDATE_LINK)；copyText(UPDATE_LINK);
-吐司("更新链接已复制")；toast("更新链接已复制");
+function showForceUpdate(content){
+  if(document.getElementById("upd_force_mask"))return;
+  var m=document.createElement("div");m.className="modal-mask";m.id="upd_force_mask";
+  m.innerHTML='<div class="modal-card" style="text-align:center">'
+    +'<div style="width:52px;height:52px;margin:0 auto 10px;border-radius:16px;background:linear-gradient(135deg,#ff4a3a,#ff8a3a);color:#fff;display:flex;align-items:center;justify-content:center">'+icon("download")+'</div>'
+    +'<div class="modal-tit">发现新版本v'+esc(UPDATE_EDITION)+'</div>'
+    +'<div class="modal-msg" style="white-space:pre-wrap;text-align:left">'+(content?esc(content):'请更新到最新版本后继续使用')+'</div>'
+    +'<button style="display:block;margin:14px auto 0;border:0;background:transparent;color:#4a6cf7;font-size:14px;font-weight:600;cursor:pointer" onclick="copyForceLink()">复制更新链接</button>'
+    +'<div class="modal-acts"><button class="btn btn-primary" onclick="doForceUpdate()">立即更新</button></div>'
+    +'</div>';
+  // 强制更新弹窗：无关闭按钮，点击遮罩/返回均不关闭，直至用户更新到最新版本
+  m.addEventListener("click",function(e){e.stopPropagation()});
+  document.body.appendChild(m);
 }
-函数doForceUpdate(){ doForceUpdate(){
-if(！update_LINK)返回；if(!UPDATE_LINK)return;
-if(窗口。webcat和&webcat浏览器){try{webcat。浏览器。打开(UPDATE_LINK)}捕获(e){窗口.打开(UPDATE_LINK，"_blank")}}if(window.webcat&&webcat.browser){try{webcat.browser.open(UPDATE_LINK)}catch(e){window.open(UPDATE_LINK,"_blank")}}
-else{window.open(UPDATE_LINK，"_blank")}else{window.open(UPDATE_LINK,"_blank")}
-  toast("正在打开下载页面，请安装最新版本");toast("正在打开下载页面，请安装最新版本");
-  // 弹窗保留不关闭：更新后版本号变新，下次启动不再弹出// 弹窗保留不关闭：更新后版本号变新，下次启动不再弹出
+function copyForceLink(){
+  if(!UPDATE_LINK){toast("暂无下载链接");return}
+  copyText(UPDATE_LINK);
+  toast("更新链接已复制");
 }
-(函数init(){applyTheme()；(函数(){var sp=document.getElementById("splash");setTimeout(function(){if(sp){sp.classList.add("hide");setTimeout(function(){if(sp&&sp.parentNode)sp.parentNode.removeChild(sp)},520)}},1250)})(); checkUpdate()；if(auth()){try{var_c=localStorage)。getitem("yh_user")；如果(_c)USER=JSON。parse(_c)}catch(e){}；loadUser(函数(){try{renderRoute()}catch(e){}})；if(！位置。hash||location。hash==="#"||location。hash==="#login")go("home")}else{var_h0=字符串(location.hash||"")；if(_h0！==function init(){ applyTheme(); (function(){var sp=document.getElementById("splash");setTimeout(function(){if(sp){sp.classList.add("hide");setTimeout(function(){if(sp&&sp.parentNode)sp.parentNode.removeChild(sp)},520)}},1250)})(); checkUpdate(); if(auth()){try{var _c=localStorage.getItem("yh_user");if(_c)USER=JSON.parse(_c)}catch(e){};loadUser(function(){try{renderRoute()}catch(e){}});if(!location.hash||location.hash==="#"||location.hash==="#login")go("home")}else{var _h0=String(location.hash||"");if(_h0!=="#register"){try{history。replaceState(null，""，"#login")}catch(e){location.hash="#login"}}renderRoute()/*未登录：内部渲染登录/注册页，不再跳转独立login.html*/}})()；){尝试{历史.replaceState(无效的,"","#登录")}赶上(e){位置.哈希="#登录"}}renderRoute()/*未登录：内部渲染登录/注册页，不再跳转独立login.html*/} })();
-</script>script>
-</body>body>
-</html>html>
+function doForceUpdate(){
+  if(!UPDATE_LINK)return;
+  if(window.webcat&&webcat.browser){try{webcat.browser.open(UPDATE_LINK)}catch(e){window.open(UPDATE_LINK,"_blank")}}
+  else{window.open(UPDATE_LINK,"_blank")}
+  toast("正在打开下载页面，请安装最新版本");
+  // 弹窗保留不关闭：更新后版本号变新，下次启动不再弹出
+}
+(function init(){
+  applyTheme();
+  (function(){var sp=document.getElementById("splash");setTimeout(function(){if(sp){sp.classList.add("hide");setTimeout(function(){if(sp&&sp.parentNode)sp.parentNode.removeChild(sp)},520)}},1250)})();
+  checkUpdate();
+  if(auth()){try{var _c=localStorage.getItem("yh_user");if(_c)USER=JSON.parse(_c)}catch(e){};loadUser(function(){try{renderRoute()}catch(e){}});if(!location.hash||location.hash==="#"||location.hash==="#login")go("home")}
+  else{var _h0=String(location.hash||"");if(_h0!=="#register"){try{history.replaceState(null,"","#login")}catch(e){location.hash="#login"}}renderRoute()}
+})();
+</script>
+</body>
+</html>
