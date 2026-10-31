@@ -87,7 +87,7 @@ input,textarea{font-size:16px}
 .vip-badge{display:inline-block;height:14px;width:auto;vertical-align:-2px;margin-left:5px;border-radius:2px;flex:0 0 auto}
 .av-vip .vip-frame{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:calc(100% + 16px);height:calc(100% + 16px);pointer-events:none;z-index:3;border-radius:50%}
 .vip-name{background:linear-gradient(90deg,#ff3b30,#ffa63a);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:800}
-.vip-name .nick-t,.vip-name .upbadge,.vip-name b,.vip-name i{background:linear-gradient(90deg,#ff3b30,#ffa63a);-webkit-background-clip:text;background-clip:text;color:transparent}
+.vip-name .nick-t,.vip-name b,.vip-name i{background:linear-gradient(90deg,#ff3b30,#ffa63a);-webkit-background-clip:text;background-clip:text;color:transparent}
 .vip-name .lv{background:linear-gradient(135deg,#f6c24a,#ff7a18);-webkit-background-clip:border-box;background-clip:border-box;-webkit-text-fill-color:#fff;color:#fff}
 .vip-name img{background:none;-webkit-text-fill-color:initial;color:initial}
 .post-head .nick{display:flex;align-items:center;white-space:nowrap}
@@ -231,7 +231,7 @@ img{-webkit-user-drag:none;-webkit-touch-callout:none}
 .cmt{display:flex;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}
 .cmt:last-child{border:none}
 .cmt .cmt-body{flex:1}
-.cmt .cmt-name{font-size:13px;font-weight:700}
+.cmt .cmt-name{font-size:13px;font-weight:700;display:flex;align-items:center;flex-wrap:wrap;column-gap:2px}
 .cmt .cmt-time{font-size:10px;color:var(--sub);margin-top:2px}
 .cmt .cmt-text{font-size:14px;color:#2c2f3a;line-height:1.5;margin-top:5px}
 .cmt-stick{width:22px;height:22px;border-radius:4px;object-fit:cover;vertical-align:bottom;margin:1px 2px;display:inline-block}
@@ -725,6 +725,9 @@ img{-webkit-user-drag:none;-webkit-touch-callout:none}
 .ban-foot{padding:12px 18px 20px}
 .ban-btn{width:100%;padding:11px;border:none;border-radius:10px;background:#ff4a3a;color:#fff;font-size:15px;font-weight:600;cursor:pointer}
 @keyframes banIn{from{transform:translateY(-40px);opacity:0}to{transform:translateY(0);opacity:1}}
+.lv{vertical-align:middle}
+.vip-name{background:linear-gradient(90deg,#ff3b30,#ffa63a,#ff2d20,#ffa63a,#ff3b30);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-animation:vipnameflow 4s linear infinite;animation:vipnameflow 4s linear infinite}
+@keyframes vipnameflow{0%{background-position:0% 0}100%{background-position:300% 0}}
 </style>
 </head>
 <body>
