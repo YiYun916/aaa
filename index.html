@@ -665,6 +665,8 @@ img{-webkit-user-drag:none;-webkit-touch-callout:none}
 /* ===== 小程序内嵌层（不跳转页面，关闭/返回不重载应用） ===== */
 #miniLayer{position:fixed;inset:0;z-index:300;background:var(--card);display:flex;flex-direction:column}
 #miniLayer .mini-bar{position:relative;height:46px;background:var(--card);border-bottom:1px solid #f0f1f5;flex-shrink:0}
+#miniLayer .mini-hint{position:absolute;top:58px;left:50%;transform:translateX(-50%) translateY(-10px);z-index:308;max-width:80%;box-sizing:border-box;background:rgba(255,255,255,.97);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid rgba(0,0,0,.05);border-radius:14px;box-shadow:0 10px 30px rgba(30,20,60,.18);padding:12px 16px;font-size:13px;color:#5a6478;line-height:1.65;text-align:center;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .3s cubic-bezier(.16,1,.3,1),transform .3s cubic-bezier(.16,1,.3,1),visibility .3s}
+#miniLayer .mini-hint.on{opacity:1;visibility:visible;pointer-events:auto;transform:translateX(-50%) translateY(0)}
 #miniLayer .mini-tt{position:absolute;left:0;right:0;top:0;bottom:0;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#222;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 84px;pointer-events:none}
 #miniLayer .mini-cap{position:absolute;right:12px;top:50%;transform:translateY(-50%);display:flex;align-items:center;gap:2px;padding:5px 12px;border-radius:999px;background:rgba(88,76,150,.30);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.35);box-shadow:0 1px 6px rgba(30,20,60,.12)}
 #miniLayer .mini-cap button{display:flex;align-items:center;justify-content:center;border:0;background:none;color:rgba(255,255,255,.95);width:26px;height:26px;border-radius:50%;cursor:pointer;padding:0}
@@ -1103,7 +1105,7 @@ function exitApp(){
   try{if(window.close)window.close()}catch(e){}
 }
 function openMaskAny(){
-  var sels=[".zoom-mask",".dl-mask",".upd-mask",".modal-mask",".ban-mask",".sheet-mask"];
+  var sels=[".zoom-mask",".dl-mask",".upd-mask",".modal-mask",".ban-mask",".sheet-mask",".nd-mask"];
   for(var i=0;i<sels.length;i++){var e=document.querySelector(sels[i]);if(e)return e}
   return null;
 }
@@ -1153,7 +1155,7 @@ window.addEventListener("popstate",function(){
 
 /* 弹窗历史栈统一托管：任何弹层打开即压入历史，关闭即配对回退；系统返回只关弹层、不误退页面 */
 try{
-  var _maskRe=/(^|\s)(zoom|dl|upd|modal|ban|sheet)-mask(\s|$)/;
+  var _maskRe=/(^|\s)(zoom|dl|upd|modal|ban|sheet|nd)-mask(\s|$)/;
   new MutationObserver(function(muts){
     for(var i=0;i<muts.length;i++){
       var mu=muts[i],k;
@@ -1313,7 +1315,7 @@ function renderHot(){
     function heat(p){return Number(p.views||0)+Number(p.like_count||0)*10+(Number(p.is_coin_switch)?Number(p.coin||0)*5:0)}
     var sorted=all.slice().sort(function(x,y){return heat(y)-heat(x)});
     HOT_RES=sorted.filter(function(p){return String(p.plate_id)===String(CONFIG.UP_PLATE)||String(p.plate_id)===String(CONFIG.GAME_PLATE)||String(p.plate_id)===String(CONFIG.MINI_PLATE)}).slice(0,20);
-    HOT_POSTS=sorted.filter(function(p){return String(p.plate_id)===String(CONFIG.COMP_PLATE)}).slice(0,20);
+    HOT_POSTS=sorted.filter(function(p){var pid=String(p.plate_id);return pid!==String(CONFIG.UP_PLATE)&&pid!==String(CONFIG.GAME_PLATE)&&pid!==String(CONFIG.MINI_PLATE)}).slice(0,20);
     showHotTab("res");
   }).catch(function(){document.getElementById("hotBody").innerHTML='<div class="empty">网络错误</div>'});
 }
@@ -1935,6 +1937,7 @@ function renderMini(){
     +'<button onclick="miniSheetShow()" title="更多"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="2.4"/><circle cx="19" cy="12" r="1.6"/></svg></button>'
     +'<button onclick="miniClose()" title="关闭小程序"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="3.2" fill="currentColor" stroke="none"/></svg></button>'
     +'</div></div>'
+    +'<div class="mini-hint" id="miniHint" onclick="miniHintHide()">若网页加载失败，可尝试点击右上角「···」复制链接后，前往浏览器打开</div>'
     +'<div class="mini-body"><iframe id="miniFrm" referrerpolicy="no-referrer-when-downgrade"></iframe>'
     +'<div class="mini-tip" id="miniTip"><div class="ld"></div><div>正在打开…</div></div></div>'
     +'<div class="mini-mask" id="miniMask" onclick="miniSheetHide()"></div>'
@@ -1950,11 +1953,11 @@ function renderMini(){
   var frm=document.getElementById("miniFrm"),tip=document.getElementById("miniTip");
   window._miniErrShown=false;
   var loaded=false,shown=false;
-  frm.onload=function(){loaded=true;if(!window._miniErrShown&&!shown)tip.style.display="none"};
+  frm.onload=function(){loaded=true;if(!window._miniErrShown&&!shown){tip.style.display="none";miniHintHide()}};
   frm.onerror=function(){if(!window._miniErrShown&&!shown){shown=true;window._miniErrShown=true;miniShowError()}};
   frm.src=MINI.url;
   setTimeout(function(){if(!loaded&&!window._miniErrShown&&!shown&&tip.style.display!=="none"){tip.innerHTML='<div class="ld"></div><div>加载较慢，请稍候…</div>'}},2500);
-  setTimeout(function(){if(!loaded&&!window._miniErrShown&&!shown)miniShowError()},5000);
+  setTimeout(function(){if(!loaded&&!window._miniErrShown&&!shown){tip.style.display="none";miniHintShow()}},5000);
 }
 function miniClose(){
   var h=(location.hash||"").replace(/^#/,"");
@@ -1970,6 +1973,8 @@ function miniShowError(){
   tip.style.display="flex";
   tip.innerHTML='<div class="mini-err"><span class="me-ic">'+icon("alert",34)+'</span><div class="me-title">网页加载失败</div><div class="me-desc">若需浏览，可点击右上角「···」复制链接后，打开浏览器查看</div></div>';
 }
+function miniHintShow(){var h=document.getElementById("miniHint");if(h)h.classList.add("on")}
+function miniHintHide(){var h=document.getElementById("miniHint");if(h)h.classList.remove("on")}
 function miniSheetShow(){var m=document.getElementById("miniMask"),s=document.getElementById("miniSheet");if(m)m.classList.add("on");if(s)s.classList.add("on")}
 function miniSheetHide(){var m=document.getElementById("miniMask"),s=document.getElementById("miniSheet");if(m)m.classList.remove("on");if(s)s.classList.remove("on");miniDelReset()}
 function miniCopy(){
