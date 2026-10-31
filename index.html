@@ -728,6 +728,18 @@ img{-webkit-user-drag:none;-webkit-touch-callout:none}
 .lv{vertical-align:middle}
 .vip-name{background:linear-gradient(90deg,#ff3b30,#ffa63a,#ff2d20,#ffa63a,#ff3b30);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-animation:vipnameflow 4s linear infinite;animation:vipnameflow 4s linear infinite}
 @keyframes vipnameflow{0%{background-position:0% 0}100%{background-position:300% 0}}
+
+/* ===== 现代化过渡与加载动画 ===== */
+.page-in{animation:pageIn .38s cubic-bezier(.16,1,.3,1)}
+@keyframes pageIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+#miniLayer{animation:miniIn .3s cubic-bezier(.16,1,.3,1)}
+@keyframes miniIn{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:translateY(0)}}
+.modal-mask,.sheet-mask,.dl-mask,.upd-mask,.ban-mask{animation-duration:.24s;animation-timing-function:cubic-bezier(.16,1,.3,1)}
+.modal-card{animation:pop .3s cubic-bezier(.22,1.2,.36,1)}
+.ws-sheet,.sheet-panel{transition-timing-function:cubic-bezier(.16,1,.3,1)}
+.loading .spin,.spin{width:22px;height:22px;border:0;border-radius:50%;background:conic-gradient(from 90deg,rgba(78,124,255,0) 0 270deg,var(--pri) 0);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 0);mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 0);animation:sp .9s linear infinite}
+.ld,#miniLayer .mini-tip .ld{border:0;border-radius:50%;background:conic-gradient(from 90deg,rgba(78,124,255,0) 0 270deg,var(--pri) 0);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 0);mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 0);animation:miniSpin .9s linear infinite}
+.hover-btn.loading .spin{width:15px;height:15px;border:0;background:conic-gradient(from 90deg,rgba(255,255,255,.3) 0 270deg,#fff 0);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 0);mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 0);animation:btnspin .7s linear infinite}
 </style>
 </head>
 <body>
@@ -1007,7 +1019,7 @@ function restoreScroll(tab){
 function curTabOf(h){if(h==="home"||h==="")return"home";if(h==="discover")return"discover";if(h==="up")return"up";if(h==="msg")return"msg";if(h==="profile")return"profile";return""}
 function renderRoute(){
   var hash=location.hash.replace("#","")||"home";
-  var L=document.getElementById("miniLayer");if(L&&hash.indexOf("mini")!==0){L.remove()}
+  var L=document.getElementById("miniLayer");if(L&&hash.indexOf("mini")!==0){L.remove();window._miniPush=0}
   var page="home";
   if(LAST_TAB)saveScroll(LAST_TAB);
   if(hash==="home"||hash===""){renderHome();page="home"}
@@ -1068,14 +1080,18 @@ function go(route){
   var r=String(route==null?"home":route);
   var t=r.charAt(0)==="#"?r.slice(1):r;
   var target="#"+t;
+  var _ml=document.getElementById("miniLayer");
+  var _fromMini=_ml&&window._miniPush;
+  if(_fromMini){_ml.remove();window._miniPush=0}
   if(t==="discover") SEARCH_KW=""; // 点击发现时清空搜索状态
+  if(window._pendingMaskBack){window._pendingMaskBack=0;_fromMini=1} /* 弹层刚关且未回退：本次导航用 replace 吞掉弹窗历史层 */
   if(TAB_ROUTES[t]||REPLACE_ROUTES[t]){
     // 底部导航 / 登录注册切换：用 replace 替换当前历史条目，避免在返回栈里层层堆叠
     if(location.hash!==target){location.replace(target)}
     else if(typeof renderRoute==="function"){renderRoute()}
   }else{
     // 子页面：正常压入历史，返回时逐级回退
-    if(location.hash!==target){location.hash=target}
+    if(location.hash!==target){if(_fromMini){location.replace(target)}else{location.hash=target}}
     else if(typeof renderRoute==="function"){renderRoute()}
   }
 }
@@ -1095,6 +1111,8 @@ function openMaskAny(){
 function openMaskPush(m){document.body.appendChild(m);m._maskPush=1;try{history.pushState({__mask:1},"")}catch(e){}}
 function closeMaskPush(m){if(m&&m.parentNode)m.parentNode.removeChild(m);if(m&&m._maskPush){m._maskPush=0;window._skipPop=1;try{history.back()}catch(e){}}}
 function histBack(){
+  var ml=document.getElementById("miniLayer");
+  if(ml){miniClose();return}
   var v=document.getElementById("viewer");
   if(v&&!v.classList.contains("hidden")){closeViewer();return}
   // 先关闭可能打开的任意弹窗（下载/选择/确认/进度等）
@@ -1111,9 +1129,18 @@ function histBack(){
 window.addEventListener("hashchange",renderRoute);
 window.addEventListener("popstate",function(){
   if(window._skipPop){window._skipPop=0;return} /* 主动回退历史（closeMaskPush 抵消），非用户返回，忽略 */
+  var ml=document.getElementById("miniLayer");
+  if(ml){ /* 系统返回：只关小程序层，帖子详情等底层页面保持不动 */
+    window._miniPush=0;
+    var sh=document.getElementById("miniSheet");
+    if(sh&&sh.classList.contains("on")){miniSheetHide();try{history.pushState({__mini:1},"")}catch(e){}}
+    else{ml.remove()}
+    return;
+  }
   var m=openMaskAny();
   if(m){
     if(m._maskPush)m._maskPush=0;
+    window._popConsumed=1;
     m.remove(); /* 系统返回已消费该历史层，不再 go(1) 恢复，避免残留一层导致要多划一次 */
     return;
   }
@@ -1124,6 +1151,36 @@ window.addEventListener("popstate",function(){
   }
 });
 
+/* 弹窗历史栈统一托管：任何弹层打开即压入历史，关闭即配对回退；系统返回只关弹层、不误退页面 */
+try{
+  var _maskRe=/(^|\s)(zoom|dl|upd|modal|ban|sheet)-mask(\s|$)/;
+  new MutationObserver(function(muts){
+    for(var i=0;i<muts.length;i++){
+      var mu=muts[i],k;
+      for(k=0;k<mu.addedNodes.length;k++){
+        var n=mu.addedNodes[k];
+        if(n&&n.nodeType===1&&_maskRe.test(n.className||"")&&!n._maskPush&&!n._autoPush){
+          n._autoPush=1;
+          try{history.pushState({__mask:1},"")}catch(e){n._autoPush=0}
+        }
+      }
+      for(k=0;k<mu.removedNodes.length;k++){
+        var r=mu.removedNodes[k];
+        if(r&&r.nodeType===1&&r._autoPush){
+          r._autoPush=0;
+          if(window._popConsumed){window._popConsumed=0} /* 系统返回已消费该层，不再回退 */
+          else if(window._pendingMaskBack){} /* go() 接管：由导航以 replace 吞层 */
+          else{
+            window._pendingMaskBack=1;
+            setTimeout(function(){
+              if(window._pendingMaskBack){window._pendingMaskBack=0;window._skipPop=1;try{history.back()}catch(e){}}
+            },0);
+          }
+        }
+      }
+    }
+  }).observe(document.body,{childList:true});
+}catch(e){}
 /* placeholder 占位（后续批次填充） */
 function renderLogin(){
   var reg=null;try{reg=JSON.parse(localStorage.getItem("yh_regtemp")||"null")}catch(e){};if(reg)try{localStorage.removeItem("yh_regtemp")}catch(e){}
@@ -1899,7 +1956,13 @@ function renderMini(){
   setTimeout(function(){if(!loaded&&!window._miniErrShown&&!shown&&tip.style.display!=="none"){tip.innerHTML='<div class="ld"></div><div>加载较慢，请稍候…</div>'}},2500);
   setTimeout(function(){if(!loaded&&!window._miniErrShown&&!shown)miniShowError()},5000);
 }
-function miniClose(){go(window._miniBack||"up")}
+function miniClose(){
+  var h=(location.hash||"").replace(/^#/,"");
+  if(h.indexOf("mini")===0){window._skipPop=1;try{history.back()}catch(e){}return}
+  var L=document.getElementById("miniLayer");if(L)L.remove();
+  if(window._miniPush){window._miniPush=0;window._skipPop=1;try{history.back()}catch(e){}return}
+  go(window._miniBack||"up");
+}
 function miniShowError(){
   var tip=document.getElementById("miniTip");
   if(!tip)return;
@@ -2345,6 +2408,7 @@ function openMiniLink(u,n){
     window._miniBack=(location.hash||"").replace(/^#/,"")||"home";
     MINI={url:u,name:n||"资源链接",cover:"",author:"",id:""};
     renderMini();
+    try{history.pushState({__mini:1},"");window._miniPush=1}catch(e){window._miniPush=0}
     miniShowError();
     var f=document.getElementById("miniFrm");if(f)f.removeAttribute("src");
     return;
