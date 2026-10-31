@@ -683,7 +683,6 @@ img{-webkit-user-drag:none;-webkit-touch-callout:none}
 #miniLayer .mini-tip{position:absolute;inset:0;z-index:305;display:none;flex-direction:column;align-items:center;justify-content:center;background:#f5f6f8;color:#7a8499;font-size:14px;gap:14px;padding:28px;text-align:center;line-height:1.8}
 #miniLayer .mini-tip .ld{width:26px;height:26px;border:3px solid #e3e6ee;border-top-color:var(--pri);border-radius:50%;animation:miniSpin .8s linear infinite}
 @keyframes miniSpin{to{transform:rotate(360deg)}}
-#miniLayer .mini-tip .mini-copy-btn{border:0;background:var(--pri);color:#fff;font-size:14px;font-weight:600;border-radius:20px;padding:9px 22px;cursor:pointer}
 #miniLayer .mini-mask{position:fixed;inset:0;background:rgba(20,18,35,.5);opacity:0;visibility:hidden;transition:opacity .22s ease;z-index:310}
 #miniLayer .mini-mask.on{opacity:1;visibility:visible}
 #miniLayer .mini-sheet{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-radius:16px 16px 0 0;padding:14px 14px calc(14px + env(safe-area-inset-bottom));transform:translateY(105%);transition:transform .26s cubic-bezier(.22,.9,.32,1);z-index:311;max-height:78vh;overflow-y:auto}
@@ -1952,12 +1951,17 @@ function renderMini(){
   document.body.appendChild(L);
   if(MINI.cover){var ic=document.getElementById("msIc");ic.innerHTML="";ic.style.backgroundImage="url('"+MINI.cover.replace(/'/g,"%27")+"')"}
   var frm=document.getElementById("miniFrm"),tip=document.getElementById("miniTip");
-  var loaded=false;
+  var loaded=false,failed=false;
+  tip.style.display="flex";
+  tip.innerHTML='<div class="ld"></div><div>正在打开…</div>';
   frm.onload=function(){loaded=true;tip.style.display="none";miniHintHide()};
-  frm.onerror=function(){if(!loaded){tip.style.display="none";miniHintShow()}};
+  frm.onerror=function(){
+    if(loaded||failed)return;
+    failed=true; /* 确认失败后再观察片刻，期间加载成功就不弹卡片 */
+    setTimeout(function(){if(!loaded){tip.style.display="none";miniHintShow()}},1200);
+  };
   frm.src=MINI.url;
-  setTimeout(function(){if(!loaded&&tip.style.display!=="none"){tip.innerHTML='<div class="ld"></div><div>加载较慢，请稍候…</div>'}},2500);
-  setTimeout(function(){if(!loaded){tip.style.display="none";miniHintShow()}},5000);
+  setTimeout(function(){if(!loaded){tip.innerHTML='<div class="ld"></div><div>加载较慢，请稍候…</div>'}},2500);
 }
 function miniClose(){
   var h=(location.hash||"").replace(/^#/,"");
@@ -2404,215 +2408,6 @@ function dlItemHtml(r){
 function dlRe(id){var r=dlFind(id);if(r&&r.url)doActLocal(r.url)}
 function dlDel(id){dlRemove(id);renderDlList()}
 function doActBrowser(url){if(window.webcat&&webcat.browser)webcat.browser.open(url);else window.open(url,"_blank")}
-function isFrameBlocked(u){
-  u=String(u||"").toLowerCase();
-  var hosts=["drive.uc.cn","uc.cn","uc.zone","pan.quark.cn","quark.cn","aliyundrive.com","alipan.com","123pan.com","123684.com","123912.com","123591.com","123809.com","cloud.189.cn","189.cn","wenshushu.cn","wenshushu.com"];
-  for(var i=0;i<hosts.length;i++){if(u.indexOf(hosts[i])>=0)return true}
-  return false;
-}
-function openMiniLink(u,n){
-  u=String(u||"").trim();if(!u){toast("链接无效");return}
-  if(isFrameBlocked(u)){
-    window._miniBack=(location.hash||"").replace(/^#/,"")||"home";
-    MINI={url:u,name:n||"资源链接",cover:"",author:"",id:""};
-    renderMini();
-    try{history.pushState({__mini:1},"");window._miniPush=1}catch(e){window._miniPush=0}
-    var f=document.getElementById("miniFrm");if(f)f.removeAttribute("src");
-    miniHintShow();
-    return;
-  }
-  openMini(u,n||"资源链接","","",0)
-}
-function doActCopy(url){if(window.webcat&&webcat.clipboard)webcat.clipboard.set(url);else copyText(url);toast("链接已复制，可粘贴到浏览器下载")}
-function isDirectLink(url){
-  var h="";try{h=String(new URL(url).hostname).toLowerCase()}catch(e){return false}
-  // 1) 网盘/分享站域名 → 非直链（无法软件内本地下载）
-  var pans=["pan.","drive","uc","xunlei","quark","aliyun","lanzou","baidu","wps","189","caiyun","yunpan","115","10086","feixin","migu","ydpan","mcloud","pan-cloud","yun.","123pan","weiyun","kuaipan","cowtransfer","wenshushu","jianguoyun","dropbox","mega","aliyundrive","onedrive","sharepoint","tencent","qq.com","panxunlei","tianyi"];
-  for(var i=0;i<pans.length;i++)if(h.indexOf(pans[i])>=0)return false;
-  // 2) 分享结构特征（路径/参数）→ 非直链，即使域名未识别
-  var lu=url.toLowerCase();
-  if(/\/share\/|\/sharing\/|shareid=|pwd=|from=|share_token=|\/portal\/|\/s\/|\/detail\//.test(lu))return false;
-  // 3) 真正直链：URL 以常见文件扩展名结尾
-  if(/\.(apk|zip|rar|7z|exe|tar|gz|iso|bin|pdf|docx?|xlsx?|ppt|pptx|mp4|mp3|png|jpe?g|gif|webp|txt)$/i.test(url.split("?")[0].split("#")[0]))return true;
-  // 4) 保守兜底：无法确认是直链 → 一律非直链
-  return false;
-}
-function showDownload(){
-  var url=GD_DL;if(!url){toast("该资源暂无下载链接");return}
-  var direct=isDirectLink(url);
-  var opts,note,acts;
-  if(direct){
-    opts='<div class="dl-opts">'
-      +'<button class="dl-opt" data-a="local"><span class="dl-ico blue"><svg viewBox="0 0 24 24" fill="none" stroke="#3d72f0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"/><path d="m7 9 5 5 5-5"/><path d="M4.5 20h15"/></svg></span><span class="dl-txt"><b>本地下载</b><small>点击一键自动下载</small></span></button>'
-      +'<button class="dl-opt" data-a="browser"><span class="dl-ico orange"><svg viewBox="0 0 24 24" fill="none" stroke="#f2a13c" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.4 4 5.7 4 9s-1.4 6.6-4 9c-2.6-2.4-4-5.7-4-9s1.4-6.6 4-9Z"/></svg></span><span class="dl-txt"><b>浏览器下载</b><small>点击自动跳转浏览器下载</small></span></button>'
-      +'<button class="dl-opt" data-a="copy"><span class="dl-ico gray"><svg viewBox="0 0 24 24" fill="none" stroke="#8a909b" stroke-width="2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7L11.5 5"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7L12.5 19"/></svg></span><span class="dl-txt"><b>复制链接</b><small>点击复制链接，粘贴到浏览器下载</small></span></button>'
-      +'</div>';
-    note='<p class="dl-note">因软件内无法直接调用系统安装程序，如需自动安装，可复制链接后前往浏览器下载。</p>';
-    acts='<div class="dl-acts"><button class="dl-btn" data-a="browser">浏览器下载</button><button class="dl-btn" data-a="local">本地下载</button></div>';
-  }else{
-    opts='<div class="dl-opts">'
-      +'<button class="dl-opt" data-a="browser"><span class="dl-ico orange"><svg viewBox="0 0 24 24" fill="none" stroke="#f2a13c" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.4 4 5.7 4 9s-1.4 6.6-4 9c-2.6-2.4-4-5.7-4-9s1.4-6.6 4-9Z"/></svg></span><span class="dl-txt"><b>浏览器下载</b><small>点击自动跳转浏览器下载</small></span></button>'
-      +'<button class="dl-opt" data-a="copy"><span class="dl-ico gray"><svg viewBox="0 0 24 24" fill="none" stroke="#8a909b" stroke-width="2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7L11.5 5"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7L12.5 19"/></svg></span><span class="dl-txt"><b>复制链接</b><small>点击复制链接，粘贴到浏览器下载</small></span></button>'
-      +'</div>';
-    note='<p class="dl-note">UC网盘、迅雷网盘等网盘软件分享链接无法在软件内本地下载，请复制链接前往浏览器下载。</p>';
-    acts='<div class="dl-acts"><button class="dl-btn" data-a="browser">浏览器下载</button></div>';
-  }
-  var m=document.createElement("div");m.className="dl-mask";
-  m.innerHTML='<div class="dl-sheet">'
-    +'<button class="dl-close">×</button>'
-    +'<div class="dl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"/><path d="m7 9 5 5 5-5"/><path d="M4.5 20h15"/></svg></div>'
-    +'<h2>请选择下载方式</h2>'
-    +'<p class="dl-desc">我们提供多种下载方式，方便用户选择更快的下载方式，你可自主选择下方的下载方式。</p>'
-    +opts+note+acts
-    +'<button class="dl-copy" data-a="copy">复制链接</button>'
-    +'</div>';
-  m.addEventListener("click",function(e){
-    if(e.target===m||e.target.classList.contains("dl-close")){closeMaskPush(m);return}
-    var b=e.target.closest("[data-a]");if(!b)return;
-    var a=b.getAttribute("data-a");closeMaskPush(m);
-    if(a==="copy"){doActCopy(url)}
-    else if(a==="browser"){doActBrowser(url)}
-    else{doActLocal(url)}
-  });
-  openMaskPush(m);
-}
-function startDownload(){
-  var url=GD_DL;if(!url){toast("该资源暂无下载链接");return}
-  var mode=(getSet().dlMode||"default");
-  if(mode==="browser"){doActBrowser(url);return}
-  if(mode==="copy"){doActCopy(url);return}
-  if(mode==="local"){if(isDirectLink(url)){doActLocal(url);return}/* 不支持本地下载 → 回退默认弹窗 */}
-  showDownload();
-}
-function dlBar(){
-  if(GD_LOCK)return '<button style="width:100%;height:48px;border:none;border-radius:14px;background:linear-gradient(90deg,#ff4a3a,#ff8a3a);color:#fff;font-weight:800;font-size:16px;cursor:pointer" onclick="buyPostGame(\''+esc(GD_ID)+'\')">'+esc(GD_COIN)+' 金币购买后下载</button>';
-  if(!GD_DL)return '<div style="height:48px;display:flex;align-items:center;justify-content:center;color:#98a0b3;font-size:13px">该资源暂无下载链接</div>';
-  return '<button style="width:100%;height:48px;border:none;border-radius:14px;background:linear-gradient(135deg,#00c98d,#00e0a4);color:#fff;font-weight:800;font-size:16px;cursor:pointer" onclick="startDownload()">下载安装</button>';
-}
-function cmtBar(){
-  return cmtInputHTML("gc","sendGameComment(GD_ID)");
-}
-function loadGameComments(pid,author){
-  var a=auth()||{user:""};
-  apiPost(CONFIG.forumBase+"comment_list.php",forumAuth().concat([["user",a.user],["post_id",pid]])).then(function(cj){
-    var list=(cj&&cj.data&&cj.data.list)||(cj&&cj.data instanceof Array?cj.data:null);var el=document.getElementById("gdc");if(!el)return;
-    if(list&&list instanceof Array&&list.length){
-      list.forEach(function(c){});
-      var ch='';list.forEach(function(c){var isAuth=author&&c.user&&String(c.user)===String(author);var badge=isAuth?'<span class="upbadge">UP作者</span>':'';ch+='<div class="cmt" data-user="'+esc(c.user||"")+'">'+avatarHtml(c.user_name||c.user||"?",30,c.user,'go(\'upauthor:'+esc(c.user||"")+'\')',c.vip)+'<div class="cmt-body"><div class="cmt-name">'+esc(nickOf(c))+userLv(c)+'</div><div class="cmt-time">'+tsText(c.create_time)+'</div><div class="cmt-text">'+cmtTextHtml(c.content)+'</div></div></div>'});
-      el.innerHTML=ch;
-      enrichCmtNames(el);
-    }else{el.innerHTML='<div class="empty" style="padding:24px">暂无评论，快来抢沙发</div>'}
-  }).catch(function(){});
-}
-function renderAuthorProfile(user){
-  var app=document.getElementById("app");
-  app.innerHTML='<div class="toolbar"><span class="t">个人主页</span><button class="back" onclick="histBack()">'+icon("back")+'返回</button></div>'
-    +'<div id="au"><div class="loading"><span class="spin"></span><span>加载中…</span></div></div>';
-  var a=auth()||{user:""};
-  apiPost(CONFIG.forumBase+"post_all_list.php",forumAuth().concat([["user",a.user],["page_size","60"]])).then(function(j){
-    var all=listData(j)||[];
-    var mine=all.filter(function(p){return String(p.user)===String(user)});
-    var res=mine.filter(function(p){return String(p.plate_id)===String(CONFIG.UP_PLATE)||String(p.plate_id)===String(CONFIG.GAME_PLATE)||String(p.plate_id)===String(CONFIG.MINI_PLATE)});
-    var posts=mine.filter(function(p){var pl=String(p.plate_id);return pl!==String(CONFIG.UP_PLATE)&&pl!==String(CONFIG.GAME_PLATE)&&pl!==String(CONFIG.MINI_PLATE)});
-    var views=0;mine.forEach(function(p){views+=(p.views||0)});
-    // 昵称/头像从云端拉：取该用户最新帖子的 user_name（改昵称后新帖携带新名），自己则直接用云端 USER
-    var nm=user||"用户";var userQQ="";
-    var _latest=null;
-    mine.forEach(function(p){if(!_latest||(p.create_time||0)>(_latest.create_time||0))_latest=p});
-    if(_latest&&_latest.user_name)nm=_latest.user_name;
-    if(_latest&&_latest.QQ)userQQ=_latest.QQ;
-    var isMe=(a.user&&String(user)===String(a.user));
-    if(isMe&&USER.name)nm=USER.name;
-    if(isMe&&USER.QQ)userQQ=USER.QQ;
-    var el=document.getElementById("au");if(!el)return;
-    // 关注/粉丝数量（抖音样式：数字+标签，云端实时拉取）
-    var relFollow=-1,relFans=-1;
-    function updRel(){
-      var f=document.getElementById("rel_follow"),s=document.getElementById("rel_fans");
-      if(f)f.textContent=relFollow>=0?relFollow:"-";
-      if(s)s.textContent=relFans>=0?relFans:"-";
-    }
-    apiPost(CONFIG.forumBase+"follow_list.php",forumAuth().concat([["user",user],["mode","following"]])).then(function(j){var d=j&&j.data;relFollow=(d&&d.total!=null)?d.total:0;updRel()}).catch(function(){relFollow=0;updRel()});
-    apiPost(CONFIG.forumBase+"follow_list.php",forumAuth().concat([["user",user],["mode","followers"]])).then(function(j){var d=j&&j.data;relFans=(d&&d.total!=null)?d.total:0;updRel()}).catch(function(){relFans=0;updRel()});
-    var relHtml='<div style="display:flex;gap:22px;margin-top:12px;align-items:flex-start">'
-      +'<span '+(isMe?'class="op" onclick="go(\'follow\')" ':'')+'style="display:flex;flex-direction:column;align-items:center;line-height:1.4;cursor:'+(isMe?'pointer':'default')+'"><b id="rel_follow" style="font-size:17px;color:#1c2033;font-weight:800">-</b><span style="font-size:11px;color:#98a0b3">关注</span></span>'
-      +'<span '+(isMe?'class="op" onclick="go(\'followers\')" ':'')+'style="display:flex;flex-direction:column;align-items:center;line-height:1.4;cursor:'+(isMe?'pointer':'default')+'"><b id="rel_fans" style="font-size:17px;color:#1c2033;font-weight:800">-</b><span style="font-size:11px;color:#98a0b3">粉丝</span></span>'
-      +'</div>';
-    var h='<div class="au-head">'
-      +'<div id="au_card" class="au-card" style="display:none"></div>'
-      +avatarHtml(nm,72,user,"",_latest&&_latest.vip)+'<div class="au-info"><div class="au-name"><span class="nick-t">'+esc(nm)+'</span></div><div id="au_sig" style="display:none;margin-top:6px;font-size:12px;color:#98a0b3;max-width:250px;line-height:1.5;word-break:break-all"></div><div class="au-stats"><span>'+mine.length+' 发布</span><span>'+views+' 浏览</span></div>'
-      +relHtml
-      +(isMe?'':'<div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-primary" style="height:30px;padding:0 14px;font-size:13px" onclick="followUser(\''+esc(user)+'\')">关注</button><button class="btn btn-ghost" style="height:30px;padding:0 14px;font-size:13px" onclick="go(\'chat:'+esc(user)+'\')">私信</button></div>')
-      +'</div>'
-      +'</div>';
-    h+='<div class="gd-tabs"><button class="tab on" data-t="r" onclick="auTab(\'r\')">资源('+res.length+')</button><button class="tab" data-t="p" onclick="auTab(\'p\')">帖子('+posts.length+')</button></div>';
-    h+='<div id="aures"><div class="rows">'+(res.length?res.map(function(x){return gameRowCard(x)}).join(""):'<div class="empty" style="padding:20px">暂无资源</div>')+'</div></div>';
-    h+='<div id="aupost" style="display:none"><div class="grid">'+(posts.length?posts.map(function(x){return postSmallCard(x)}).join(""):'<div class="empty" style="padding:20px">暂无帖子</div>')+'</div></div>';
-    el.innerHTML=h;
-    enrichAuthor(user,document.querySelector("#au .au-name"),null,{cardEl:document.querySelector("#au .au-card")});
-    // 用户资料从云端拉：昵称/签名/QQ
-    apiPost(CONFIG.APIBase+"user_yhxx.php",[["backstage",CONFIG.backstage],["appid",CONFIG.appid],["key",CONFIG.key],["user",user]]).then(function(j){
-      if(!j)return;
-      var nm2=j.name?String(j.name).trim():"";
-      var sig=j.autograph?String(j.autograph).trim():"";
-      if(nm2&&nm2!==nm&&nm2!==user){var ne=document.querySelector("#au .au-name .nick-t");if(ne)ne.textContent=nm2}
-      if(sig){var se=document.getElementById("au_sig");if(se){se.textContent=sig;se.style.display="block"}}
-      if(j.vip===true||String(j.vip)==="true"||String(j.vip)==="1"){var _a=document.querySelector("#au .avatar");if(_a&&!_a.querySelector(".vip-frame")){_a.classList.add("av-vip");var _fr=document.createElement("img");_fr.className="vip-frame";_fr.src="pic/vip-5.png";_fr.alt="";_a.appendChild(_fr)}}
-    }).catch(function(){});
-  }).catch(function(){var el=document.getElementById("au");if(el)el.innerHTML='<div class="empty">网络错误</div>'});
-}
-function auTab(t){
-  var r=document.getElementById("aures");var p=document.getElementById("aupost");
-  if(r)r.style.display=(t==="r")?"block":"none";
-  if(p)p.style.display=(t==="p")?"block":"none";
-  var btns=document.querySelectorAll(".gd-tabs .tab");for(var k=0;k<btns.length;k++){btns[k].classList.toggle("on",btns[k].getAttribute("data-t")===t)}
-}
-function copyDetailUrl(){
-  // 复制当前资源帖的下载链接（备用链接一并给出，方便分发）
-  var dl=typeof GD_META!=="undefined"&&GD_META?String(GD_META.dl||"").trim():"";
-  var back=typeof GD_META!=="undefined"&&GD_META?String(GD_META.back||"").trim():"";
-  if(!dl&&!back){toast("该资源暂无可复制的下载链接");return}
-  var txt=dl+(back?("\n备用链接:"+back):"");
-  try{var t=document.createElement("textarea");t.value=txt;document.body.appendChild(t);t.select();document.execCommand("copy");document.body.removeChild(t);toast("下载链接已复制")}catch(e){toast("复制失败")}
-}
-/* ===== 收藏状态（我的收藏集合，用于按钮实心/空心与重复点击拦截） ===== */
-var FAV_SET={},FAV_LOAD_AT=0;
-function loadFavSet(cb){
-  var a=auth();if(!a){if(cb)cb();return}
-  if(Date.now()-FAV_LOAD_AT<30000){if(cb)cb();return}
-  apiPost(CONFIG.forumBase+"favorite_list.php",forumAuth().concat([["user",a.user],["page_size","200"]])).then(function(j){
-    var d=j&&j.data;var l=d&&d.list||[];
-    FAV_SET={};
-    l.forEach(function(x){if(x&&(x.post_id||x.id))FAV_SET[String(x.post_id||x.id)]=true});
-    FAV_LOAD_AT=Date.now();if(cb)cb();
-  }).catch(function(){if(cb)cb()});
-}
-function refreshFavBtn(id){
-  var b=document.getElementById("fav_btn");
-  if(!b||!FAV_SET[String(id)])return;
-  b.style.color="#ff4a3a";b.innerHTML=icon("star_fill")+'<span>已收藏</span>';
-}
-function favGame(pid){
-  var a=auth();if(!a){toast("请先登录");return}
-  if(FAV_SET[String(pid)]){toast("已收藏，无需重复收藏");return}
-  apiPost(CONFIG.forumBase+"user_relation.php",forumAuth().concat([["user",a.user],["action","favorite"],["post_id",pid]])).then(function(j){
-    if(forumOk(j)){
-      FAV_SET[String(pid)]=true;
-      toast("收藏成功");
-      refreshFavBtn(pid);
-    }else{toast(j&&j.msg||"操作失败")}
-  }).catch(function(){toast("网络错误")});
-}
-function sendGameComment(pid){
-  var a=auth();var c=editorText("gc");c=(c||"").trim();
-  if(!a){toast("请先登录");return}if(!a.user){toast("登录账号异常，请重新登录");return}
-  if(!pid){toast("帖子ID为空，无法评论");return}if(!c){toast("请输入内容");return}
-  var p=forumAuth().concat([["user",a.user],["post_id",pid],["content",c]]);var at=atFrom(c);if(at)p.push(["at_user",at]);
-  apiPost(CONFIG.forumBase+"comment_publish.php",p).then(function(j){
-    toast(forumOk(j)?"评论成功":(j&&j.msg||"评论失败"));if(forumOk(j))renderGameDetail(pid);
-  }).catch(function(){toast("网络错误")});
-}
-
 /* ===== 发资源 ===== */
 var PUB={cover:null,screens:[],coverUrl:"",screenUrls:[]};
 function payFields(){
